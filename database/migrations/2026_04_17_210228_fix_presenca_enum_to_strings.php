@@ -3,6 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB; // Importação necessária para o down original
 
 return new class extends Migration
 {
@@ -11,8 +12,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Alter ENUM column to accept string values '0' and '1'
-        DB::statement("ALTER TABLE empresa_user_presenca MODIFY presenca ENUM('0', '1') DEFAULT '0'");
+        Schema::table('empresa_user_presenca', function (Blueprint $table) {
+            // Alterando para string para evitar conflitos de tipos
+            $table->string('presenca')->default('0')->change();
+        }); // O parêntese que faltava estava aqui
     }
 
     /**
@@ -20,6 +23,9 @@ return new class extends Migration
      */
     public function down(): void
     {
-        DB::statement("ALTER TABLE empresa_user_presenca MODIFY presenca ENUM(0, 1) DEFAULT 0");
+        Schema::table('empresa_user_presenca', function (Blueprint $table) {
+            // Revertendo usando o padrão do Laravel em vez de DB::statement
+            $table->char('presenca', 1)->default('0')->change();
+        });
     }
 };
