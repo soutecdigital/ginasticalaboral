@@ -105,7 +105,14 @@
                                 value="{{ old('lng', $empresa->lng) }}">
                         </div>
 
-                        <div class="col-md-6">
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="button" class="btn btn-outline-primary btn-sm mb-1"
+                                onclick="buscarCoordenadas()">
+                                <i class="bi bi-search"></i> Localizar
+                            </button>
+                        </div>
+
+                        <div class="col-md-4">
                             <label class="form-label fw-bold small text-muted">Pessoa de Contato</label>
                             <input type="text" name="contato" class="form-control"
                                 value="{{ old('contato', $empresa->contato) }}">
@@ -256,38 +263,70 @@
         </div>
     @endif
 
-    @push('scripts')
-        <script>
-            $(document).ready(function() {
-                $('#cnpj').mask('00.000.000/0000-00');
-                $('#celular').mask('(00) 00000-0000');
+ @push('scripts')
+    <script>
+        // Função de busca (fora do ready para ser acessível pelo onclick do botão)
+        function buscarCoordenadas() {
+            const logradouro = document.getElementById('logradouro').value;
+            const numero = document.getElementById('numero').value;
+            const cidade = document.getElementById('cidade').value;
+            const bairro = document.getElementById('bairro').value;
 
-                // Lógica do Modal de Reajuste (mantida)
-                $('#modalReajuste').on('show.bs.modal', function() {
-                    let valorFormatado = $('#display_valor').val();
-                    let valorPuro = $('#valor_contrato_hidden').val();
-                    setTimeout(function() {
-                        $('#valor_original_modal').val(valorFormatado);
-                        $('#novo_valor_modal').val(parseFloat(valorPuro).toFixed(2));
-                    }, 150);
-                });
+            if (!logradouro || !cidade) {
+                alert("Preencha o logradouro e a cidade para localizar as coordenadas.");
+                return;
+            }
 
-                $('#btnAplicarReajuste').on('click', function() {
-                    let novo = $('#novo_valor_modal').val();
-                    let motivo = $('#motivo_modal').val();
-                    if (!novo || !motivo) {
-                        alert('Motivo obrigatório!');
-                        return;
+            const enderecoCompleto = `${logradouro}, ${numero}, ${bairro}, ${cidade}, Brasil`;
+
+            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(enderecoCompleto)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.length > 0) {
+                        document.getElementById('lat').value = data[0].lat;
+                        document.getElementById('lng').value = data[0].lon;
+                        alert("Coordenadas localizadas com sucesso!");
+                    } else {
+                        alert("Não foi possível encontrar as coordenadas. Verifique o endereço.");
                     }
-                    $('#valor_contrato_hidden').val(novo);
-                    $('#motivo_hidden').val(motivo);
-                    $('#display_valor').val(parseFloat(novo).toLocaleString('pt-BR', {
-                        minimumFractionDigits: 2
-                    }));
-                    $('#resumo_motivo').text(motivo);
-                    $('#modalReajuste').modal('hide');
+                })
+                .catch(error => {
+                    console.error("Erro na busca:", error);
+                    alert("Erro ao conectar com o serviço de mapas.");
                 });
+        }
+
+        $(document).ready(function() {
+            // Máscaras existentes
+            $('#cnpj').mask('00.000.000/0000-00');
+            $('#celular').mask('(00) 00000-0000');
+
+            // Lógica do Modal de Reajuste (mantida)
+            $('#modalReajuste').on('show.bs.modal', function() {
+                let valorFormatado = $('#display_valor').val();
+                let valorPuro = $('#valor_contrato_hidden').val();
+                setTimeout(function() {
+                    $('#valor_original_modal').val(valorFormatado);
+                    $('#novo_valor_modal').val(parseFloat(valorPuro).toFixed(2));
+                }, 150);
             });
-        </script>
-    @endpush
+
+            $('#btnAplicarReajuste').on('click', function() {
+                let novo = $('#novo_valor_modal').val();
+                let motivo = $('#motivo_modal').val();
+                if (!novo || !motivo) {
+                    alert('Motivo obrigatório!');
+                    return;
+                }
+                $('#valor_contrato_hidden').val(novo);
+                $('#motivo_hidden').val(motivo);
+                $('#display_valor').val(parseFloat(novo).toLocaleString('pt-BR', {
+                    minimumFractionDigits: 2
+                }));
+                $('#resumo_motivo').text(motivo);
+                $('#modalReajuste').modal('hide');
+            });
+        });
+    </script>
+@endpush
 @endsection
