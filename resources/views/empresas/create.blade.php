@@ -110,6 +110,19 @@
                                 value="{{ old('contato') }}">
                         </div>
 
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold small text-primary"><i class="bi bi-geo-alt"></i>
+                                Latitude</label>
+                            <div class="input-group">
+                                <input type="text" name="lat" id="lat" class="form-control bg-light"
+                                    value="{{ old('lat') }}" placeholder="-0.000000">
+                                <button class="btn btn-outline-primary" type="button" id="btn-gps"
+                                    title="Buscar Coordenadas">
+                                    <i class="bi bi-geo"></i>
+                                </button>
+                            </div>
+                        </div>
+
                         {{-- Dias da Semana (Compacto) --}}
                         <div class="col-12">
                             <label class="form-label fw-bold small text-muted d-block mb-2">Dias de Atendimento</label>
@@ -168,65 +181,65 @@
             </div>
         </div>
     </div>
+@push('scripts')
+<script>
+    $(document).ready(function() {
+        // FUNÇÃO 1: Busca de dados do CNPJ (Prioridade Total)
+        $('#cnpj').blur(function() {
+            let cnpj = $(this).val().replace(/\D/g, '');
+            if (cnpj.length === 14) {
+                $('#nome_fantasia').val('Buscando dados...').addClass('bg-light');
+                let btnSalvar = $('button[type="submit"]');
+                
+                // Trava o botão para evitar envio sem os dados básicos
+                btnSalvar.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span>');
 
-    @push('scripts')
-        <script>
-            $(document).ready(function() {
-                // Busca Automática de CNPJ e Endereço
-                $('#cnpj').blur(function() {
-                    let cnpj = $(this).val().replace(/\D/g, '');
-                    if (cnpj.length === 14) {
-                        // [POKA-YOKE] Feedback visual imediato
-                        $('#nome_fantasia').val('Consultando Receita Federal...').addClass('bg-light');
-                        $('button[type="submit"]').prop('disabled', true).html(
-                            '<span class="spinner-border spinner-border-sm"></span> Buscando...');
+                $.getJSON(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`, function(data) {
+                    if (!("error" in data)) {
+                        $('#nome_fantasia').val(data.nome_fantasia || data.razao_social).removeClass('bg-light');
+                        $('#razao_social').val(data.razao_social);
+                        $('#logradouro').val(data.logradouro);
+                        $('#bairro').val(data.bairro);
+                        $('#cidade').val(data.municipio);
+                        $('#estado').val(data.uf);
+                        $('#numero').val(data.numero);
 
-                        $.getJSON(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`, function(data) {
-                            // ... preenchimento dos campos ...
-
-                            // Após preencher o endereço, libera o botão mesmo se o mapa demorar
-                            $('button[type="submit"]').prop('disabled', false).html(
-                                '<i class="bi bi-save me-2"></i> SALVAR EMPRESA');
-                            $('#nome_fantasia').removeClass('bg-light');
-                        });
+                        // LIBERA O BOTÃO IMEDIATAMENTE após os dados de faturamento chegarem
+                        btnSalvar.prop('disabled', false).html('<i class="bi bi-save me-2"></i> SALVAR EMPRESA');
                     }
+                }).fail(function() {
+                    btnSalvar.prop('disabled', false).html('<i class="bi bi-save me-2"></i> SALVAR EMPRESA');
+                    $('#nome_fantasia').removeClass('bg-light').val('');
                 });
+            }
+        });
 
-                $('#cnpj').blur(function() {
-                    let cnpj = $(this).val().replace(/\D/g, '');
-                    if (cnpj.length === 14) {
-                        $('#nome_fantasia').val('Buscando dados...');
+        // FUNÇÃO 2: Busca de GPS (Apenas se o usuário clicar)
+        $('#btn-gps').click(function() {
+            let logradouro = $('#logradouro').val();
+            let numero = $('#numero').val();
+            let cidade = $('#cidade').val();
+            let uf = $('#estado').val();
 
-                        $.getJSON(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`, function(data) {
-                            if (!("error" in data)) {
-                                // 1. Preenche os campos básicos
-                                $('#nome_fantasia').val(data.nome_fantasia || data.razao_social);
-                                $('#razao_social').val(data.razao_social);
-                                $('#logradouro').val(data.logradouro);
-                                $('#bairro').val(data.bairro);
-                                $('#cidade').val(data.municipio);
-                                $('#estado').val(data.uf);
-                                $('#numero').val(data.numero);
+            if (!logradouro || !cidade) {
+                alert("Preencha o endereço primeiro para buscar as coordenadas.");
+                return;
+            }
 
-                                // 2. Busca as coordenadas GPS baseadas no endereço que acabou de chegar
-                                let enderecoCompleto =
-                                    `${data.logradouro}, ${data.numero}, ${data.municipio}, ${data.uf}, Brasil`;
+            let enderecoCompleto = `${logradouro}, ${numero}, ${cidade}, ${uf}, Brasil`;
+            $(this).html('<span class="spinner-border spinner-border-sm"></span>');
 
-                                $.getJSON(
-                                    `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURI(enderecoCompleto)}`,
-                                    function(geo) {
-                                        if (geo.length > 0) {
-                                            $('#lat').val(geo[0].lat);
-                                            $('#lng').val(geo[0].lon);
-                                        }
-                                    });
-                            }
-                        });
-                    }
-                });
-
-
+            $.getJSON(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURI(enderecoCompleto)}`, (geo) => {
+                if (geo.length > 0) {
+                    $('#lat').val(geo[0].lat);
+                    $('#lng').val(geo[0].lon);
+                    $(this).html('<i class="bi bi-check-lg"></i>').addClass('btn-success').removeClass('btn-outline-primary');
+                } else {
+                    alert("Coordenadas não encontradas para este endereço.");
+                    $(this).html('<i class="bi bi-geo"></i>');
+                }
             });
-        </script>
-    @endpush
-@endsection
+        });
+    });
+</script>
+@endpush

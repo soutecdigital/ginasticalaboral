@@ -33,7 +33,7 @@ class EmpresaTesteSeeder extends Seeder
             ['email' => 'professor@oep.com.br'],
             [
                 'name'       => 'Helton Professor',
-                'matricula'  => 'PROF001',
+                'matricula'  => '25255',
                 'password'   => Hash::make('123456'), // Senha padrão para teste
                 'perfil'     => 'professor',
                 'empresa_id' => $empresa->id,
