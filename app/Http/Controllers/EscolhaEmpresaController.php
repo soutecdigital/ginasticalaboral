@@ -15,44 +15,51 @@ use App\Models\User;
 
 class EscolhaEmpresaController extends Controller
 {
-    public function index()
-    {
-        /** @var \App\Models\User $usuario */
-        $usuario = Auth::user();
+   public function index()
+{
+    /** @var \App\Models\User $usuario */
+    $usuario = Auth::user();
 
-        // Agora o VS Code vai reconhecer o método empresas()
-        $unidades = $usuario->empresas()->where('ativo', 1)->get();
+    // Adicionamos withTrashed() para que, se uma unidade for arquivada, 
+    // ela ainda possa ser tratada aqui ou não quebre a consulta.
+    $unidades = $usuario->empresas()
+        ->withTrashed() 
+        ->where('ativo', 1)
+        ->get();
 
-        if ($unidades->isEmpty()) {
-            return view('auth.escolha_empresa', [
-                'unidades' => collect(),
-                'precisaVincular' => true
-            ]);
-        }
-
-        return view('auth.escolha_empresa', compact('unidades'));
-    }
-    public function selecionar($id)
-    {
-        /** @var \App\Models\User $usuario */
-        $usuario = Auth::user();
-        // POKA-YOKE: Especificamos 'empresas.id' para evitar a ambiguidade
-        $possuiAcesso = $usuario->empresas()
-            ->where('empresas.id', $id) // <-- Adicionado 'empresas.' aqui
-            ->exists();
-
-        if (!$possuiAcesso) {
-            return back()->withErrors(['erro' => 'Acesso negado a esta unidade.']);
-        }
-
-        $empresa = \App\Models\Empresa::findOrFail($id);
-
-        session([
-            'empresa_id'   => $empresa->id,
-            'empresa_nome' => $empresa->nome_fantasia,
+    if ($unidades->isEmpty()) {
+        return view('auth.escolha_empresa', [
+            'unidades' => collect(),
+            'precisaVincular' => true
         ]);
-
-        // Redireciona para a home após selecionar com sucesso
-        return redirect()->route('home');
     }
+
+    return view('auth.escolha_empresa', compact('unidades'));
+}
+
+public function selecionar($id)
+{
+    /** @var \App\Models\User $usuario */
+    $usuario = Auth::user();
+    
+    // Verificamos o acesso permitindo empresas deletadas (soft delete)
+    $possuiAcesso = $usuario->empresas()
+        ->withTrashed()
+        ->where('empresas.id', $id)
+        ->exists();
+
+    if (!$possuiAcesso) {
+        return back()->withErrors(['erro' => 'Acesso negado a esta unidade.']);
+    }
+
+    // Usamos withTrashed() aqui também para evitar o erro 404/500 caso a empresa esteja deletada
+    $empresa = \App\Models\Empresa::withTrashed()->findOrFail($id);
+
+    session([
+        'empresa_id'   => $empresa->id,
+        'empresa_nome' => $empresa->nome_fantasia,
+    ]);
+
+    return redirect()->route('home');
+}
 }
