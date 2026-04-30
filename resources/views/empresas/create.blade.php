@@ -7,12 +7,10 @@
                 <h4 class="fw-bold m-0" style="color: #2d3748;">
                     <i class="bi bi-building-plus me-2"></i>Nova Empresa
                 </h4>
-                <p class="text-muted small m-0">Preencha os dados para cadastrar uma nova organização e gerar o faturamento.
-                </p>
+                <p class="text-muted small m-0">Preencha os dados para cadastrar uma nova organização e gerar o faturamento.</p>
             </div>
         </div>
 
-        {{-- Bloco de Erros (Poka-Yoke para Debug) --}}
         @if ($errors->any())
             <div class="alert alert-danger shadow-sm border-0 mb-4" style="border-radius: 12px;">
                 <h6 class="fw-bold"><i class="bi bi-exclamation-triangle-fill me-2"></i>Atenção:</h6>
@@ -53,93 +51,72 @@
                                 value="{{ old('razao_social') }}">
                         </div>
 
-                        {{-- Novos Campos de Endereço --}}
+                        {{-- Endereço --}}
                         <div class="col-md-5">
                             <label class="form-label fw-bold small text-muted">Logradouro (Rua)</label>
                             <input type="text" name="logradouro" id="logradouro" class="form-control"
-                                value="{{ old('logradouro') }}" placeholder="Ex: Av. Paulista">
+                                value="{{ old('logradouro') }}">
                         </div>
 
                         <div class="col-md-2">
                             <label class="form-label fw-bold small text-muted">Nº</label>
-                            <input type="text" name="numero" id="numero" class="form-control"
-                                value="{{ old('numero') }}">
+                            <input type="text" name="numero" id="numero" class="form-control" value="{{ old('numero') }}">
                         </div>
 
                         <div class="col-md-5">
                             <label class="form-label fw-bold small text-muted">Bairro</label>
-                            <input type="text" name="bairro" id="bairro" class="form-control"
-                                value="{{ old('bairro') }}">
+                            <input type="text" name="bairro" id="bairro" class="form-control" value="{{ old('bairro') }}">
                         </div>
 
                         <div class="col-md-4">
                             <label class="form-label fw-bold small text-muted">Cidade</label>
-                            <input type="text" name="cidade" id="cidade" class="form-control"
-                                value="{{ old('cidade') }}">
+                            <input type="text" name="cidade" id="cidade" class="form-control" value="{{ old('cidade') }}">
                         </div>
 
                         <div class="col-md-2">
                             <label class="form-label fw-bold small text-muted">UF</label>
-                            <input type="text" name="estado" id="estado" class="form-control text-uppercase"
-                                maxlength="2" value="{{ old('estado') }}">
+                            <input type="text" name="estado" id="estado" class="form-control text-uppercase" maxlength="2" value="{{ old('estado') }}">
                         </div>
 
                         <div class="col-md-6">
                             <label class="form-label fw-bold small text-muted">Celular / WhatsApp</label>
-                            <input type="text" name="celular" id="celular" class="form-control"
-                                placeholder="(00) 00000-0000" value="{{ old('celular') }}">
+                            <input type="text" name="celular" id="celular" class="form-control" placeholder="(00) 00000-0000" value="{{ old('celular') }}">
                         </div>
 
-                        {{-- Campos de Geolocalização (Ocultos ou Somente Leitura) --}}
+                        {{-- Geolocalização com Botão Separado --}}
                         <div class="col-md-3">
-                            <label class="form-label fw-bold small text-primary"><i class="bi bi-geo-alt"></i>
-                                Latitude</label>
-                            <input type="text" name="lat" id="lat" class="form-control bg-light"
-                                value="{{ old('lat') }}" placeholder="-0.000000">
-                        </div>
-
-                        <div class="col-md-3">
-                            <label class="form-label fw-bold small text-primary"><i class="bi bi-geo"></i> Longitude</label>
-                            <input type="text" name="lng" id="lng" class="form-control bg-light"
-                                value="{{ old('lng') }}" placeholder="-0.000000">
-                        </div>
-
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold small text-muted">Pessoa de Contato</label>
-                            <input type="text" name="contato" class="form-control" placeholder="Ex: João da Silva"
-                                value="{{ old('contato') }}">
-                        </div>
-
-                        <div class="col-md-3">
-                            <label class="form-label fw-bold small text-primary"><i class="bi bi-geo-alt"></i>
-                                Latitude</label>
+                            <label class="form-label fw-bold small text-primary"><i class="bi bi-geo-alt"></i> Latitude</label>
                             <div class="input-group">
-                                <input type="text" name="lat" id="lat" class="form-control bg-light"
-                                    value="{{ old('lat') }}" placeholder="-0.000000">
-                                <button class="btn btn-outline-primary" type="button" id="btn-gps"
-                                    title="Buscar Coordenadas">
+                                <input type="text" name="lat" id="lat" class="form-control bg-light" value="{{ old('lat') }}" placeholder="-0.000000">
+                                <button class="btn btn-outline-primary" type="button" id="btn-gps" title="Buscar Coordenadas">
                                     <i class="bi bi-geo"></i>
                                 </button>
                             </div>
                         </div>
 
-                        {{-- Dias da Semana (Compacto) --}}
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold small text-primary"><i class="bi bi-geo"></i> Longitude</label>
+                            <input type="text" name="lng" id="lng" class="form-control bg-light" value="{{ old('lng') }}" placeholder="-0.000000">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-muted">Pessoa de Contato</label>
+                            <input type="text" name="contato" class="form-control" value="{{ old('contato') }}">
+                        </div>
+
+                        {{-- Dias da Semana --}}
                         <div class="col-12">
                             <label class="form-label fw-bold small text-muted d-block mb-2">Dias de Atendimento</label>
-                            <div class="d-flex gap-2">
+                            <div class="d-flex gap-2 flex-wrap">
                                 @foreach (['seg' => 'Seg', 'ter' => 'Ter', 'qua' => 'Qua', 'qui' => 'Qui', 'sex' => 'Sex', 'sab' => 'Sáb', 'dom' => 'Dom'] as $key => $label)
                                     <div class="form-check form-check-inline">
-                                        <input class="form-check-input" type="checkbox" name="{{ $key }}"
-                                            id="check_{{ $key }}" value="1"
-                                            {{ old($key) ? 'checked' : '' }}>
-                                        <label class="form-check-label small"
-                                            for="check_{{ $key }}">{{ $label }}</label>
+                                        <input class="form-check-input" type="checkbox" name="{{ $key }}" id="check_{{ $key }}" value="1" {{ old($key) ? 'checked' : '' }}>
+                                        <label class="form-check-label small" for="check_{{ $key }}">{{ $label }}</label>
                                     </div>
                                 @endforeach
                             </div>
                         </div>
 
-                        {{-- Plano e Valor Financeiro --}}
                         <div class="col-md-3">
                             <label class="form-label fw-bold small text-muted">Plano</label>
                             <select name="plano" class="form-select">
@@ -151,14 +128,10 @@
 
                         @if (in_array(Auth::user()->perfil, ['admin', 'socio']))
                             <div class="col-md-3">
-                                <label class="form-label fw-bold small text-success">
-                                    <i class="bi bi-currency-dollar"></i> Valor Mensal (Contrato)
-                                </label>
+                                <label class="form-label fw-bold small text-success"><i class="bi bi-currency-dollar"></i> Valor Mensal</label>
                                 <div class="input-group">
                                     <span class="input-group-text bg-success text-white border-0">R$</span>
-                                    <input type="number" name="valor_contrato" step="0.01"
-                                        class="form-control border-success" placeholder="0.00"
-                                        value="{{ old('valor_contrato') }}" required>
+                                    <input type="number" name="valor_contrato" step="0.01" class="form-control border-success" value="{{ old('valor_contrato') }}" required>
                                 </div>
                             </div>
                         @else
@@ -181,65 +154,64 @@
             </div>
         </div>
     </div>
-@push('scripts')
-<script>
-    $(document).ready(function() {
-        // FUNÇÃO 1: Busca de dados do CNPJ (Prioridade Total)
-        $('#cnpj').blur(function() {
-            let cnpj = $(this).val().replace(/\D/g, '');
-            if (cnpj.length === 14) {
-                $('#nome_fantasia').val('Buscando dados...').addClass('bg-light');
-                let btnSalvar = $('button[type="submit"]');
-                
-                // Trava o botão para evitar envio sem os dados básicos
-                btnSalvar.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span>');
 
-                $.getJSON(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`, function(data) {
-                    if (!("error" in data)) {
-                        $('#nome_fantasia').val(data.nome_fantasia || data.razao_social).removeClass('bg-light');
-                        $('#razao_social').val(data.razao_social);
-                        $('#logradouro').val(data.logradouro);
-                        $('#bairro').val(data.bairro);
-                        $('#cidade').val(data.municipio);
-                        $('#estado').val(data.uf);
-                        $('#numero').val(data.numero);
+    @push('scripts')
+        <script>
+            $(document).ready(function() {
+                // BUSCA CNPJ
+                $('#cnpj').blur(function() {
+                    let cnpj = $(this).val().replace(/\D/g, '');
+                    if (cnpj.length === 14) {
+                        $('#nome_fantasia').val('Buscando dados...').addClass('bg-light');
+                        let btnSalvar = $('button[type="submit"]');
+                        btnSalvar.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span>');
 
-                        // LIBERA O BOTÃO IMEDIATAMENTE após os dados de faturamento chegarem
-                        btnSalvar.prop('disabled', false).html('<i class="bi bi-save me-2"></i> SALVAR EMPRESA');
+                        $.getJSON(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`, function(data) {
+                            if (!("error" in data)) {
+                                $('#nome_fantasia').val(data.nome_fantasia || data.razao_social).removeClass('bg-light');
+                                $('#razao_social').val(data.razao_social);
+                                $('#logradouro').val(data.logradouro);
+                                $('#bairro').val(data.bairro);
+                                $('#cidade').val(data.municipio);
+                                $('#estado').val(data.uf);
+                                $('#numero').val(data.numero);
+                                btnSalvar.prop('disabled', false).html('<i class="bi bi-save me-2"></i> SALVAR EMPRESA');
+                            }
+                        }).fail(function() {
+                            btnSalvar.prop('disabled', false).html('<i class="bi bi-save me-2"></i> SALVAR EMPRESA');
+                            $('#nome_fantasia').removeClass('bg-light').val('');
+                        });
                     }
-                }).fail(function() {
-                    btnSalvar.prop('disabled', false).html('<i class="bi bi-save me-2"></i> SALVAR EMPRESA');
-                    $('#nome_fantasia').removeClass('bg-light').val('');
                 });
-            }
-        });
 
-        // FUNÇÃO 2: Busca de GPS (Apenas se o usuário clicar)
-        $('#btn-gps').click(function() {
-            let logradouro = $('#logradouro').val();
-            let numero = $('#numero').val();
-            let cidade = $('#cidade').val();
-            let uf = $('#estado').val();
+                // BUSCA GPS MANUAL
+                $('#btn-gps').click(function() {
+                    let logradouro = $('#logradouro').val();
+                    let numero = $('#numero').val();
+                    let cidade = $('#cidade').val();
+                    let uf = $('#estado').val();
 
-            if (!logradouro || !cidade) {
-                alert("Preencha o endereço primeiro para buscar as coordenadas.");
-                return;
-            }
+                    if (!logradouro || !cidade) {
+                        alert("Preencha o endereço primeiro!");
+                        return;
+                    }
 
-            let enderecoCompleto = `${logradouro}, ${numero}, ${cidade}, ${uf}, Brasil`;
-            $(this).html('<span class="spinner-border spinner-border-sm"></span>');
+                    let btn = $(this);
+                    let endereco = `${logradouro}, ${numero}, ${cidade}, ${uf}, Brasil`;
+                    btn.html('<span class="spinner-border spinner-border-sm"></span>');
 
-            $.getJSON(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURI(enderecoCompleto)}`, (geo) => {
-                if (geo.length > 0) {
-                    $('#lat').val(geo[0].lat);
-                    $('#lng').val(geo[0].lon);
-                    $(this).html('<i class="bi bi-check-lg"></i>').addClass('btn-success').removeClass('btn-outline-primary');
-                } else {
-                    alert("Coordenadas não encontradas para este endereço.");
-                    $(this).html('<i class="bi bi-geo"></i>');
-                }
+                    $.getJSON(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURI(endereco)}`, function(geo) {
+                        if (geo.length > 0) {
+                            $('#lat').val(geo[0].lat);
+                            $('#lng').val(geo[0].lon);
+                            btn.html('<i class="bi bi-check-lg"></i>').addClass('btn-success').removeClass('btn-outline-primary');
+                        } else {
+                            alert("Coordenadas não encontradas.");
+                            btn.html('<i class="bi bi-geo"></i>');
+                        }
+                    });
+                });
             });
-        });
-    });
-</script>
-@endpush
+        </script>
+    @endpush
+@endsection

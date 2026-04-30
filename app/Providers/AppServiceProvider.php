@@ -4,6 +4,16 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\URL;
+
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\App;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
+
+
 class AppServiceProvider extends ServiceProvider
 {
     /**
@@ -19,8 +29,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-     if (config('app.env') === 'production') {
-        URL::forceScheme('https');
+     // Só força HTTPS se o ambiente NÃO for local
+    if (config('app.env') !== 'local') {
+        \Illuminate\Support\Facades\URL::forceScheme('https');
+    
     }
     }
 }
