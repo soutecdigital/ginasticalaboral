@@ -12,15 +12,11 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 use Exception;
 
-/**
- * [LEGENDA DE DEV]
- * Controller responsável pela gestão do ecossistema de Empresas.
- * Gerencia: Cadastro, Localização (Geolocalização), Financeiro Inicial e Auditoria de Contratos.
- */
 class EmpresaController extends Controller
 {
     public function index()
     {
+        // Poka-Yoke: Traz as mais recentes primeiro para facilitar a gestão
         $empresas = Empresa::orderBy('created_at', 'desc')->get();
         return view('empresas.index', compact('empresas'));
     }
@@ -30,14 +26,13 @@ class EmpresaController extends Controller
         return view('empresas.create');
     }
 
-    /**
-     * SALVAR NOVA EMPRESA
-     * Lógica Poka-Yoke aplicada para garantir integridade de dados financeiros e geográficos.
-     */
     public function store(Request $request)
     {
-        // [SANITIZAÇÃO] Remove caracteres não numéricos do CNPJ para validação unique no DB
-        $request->merge(['cnpj' => preg_replace('/\D/', '', $request->cnpj)]);
+        // [SANITIZAÇÃO] Limpa dados antes da validação
+        $request->merge([
+            'cnpj' => preg_replace('/\D/', '', $request->cnpj),
+            'celular' => preg_replace('/\D/', '', $request->celular ?? '')
+        ]);
 
         $request->validate([
             'nome_fantasia'  => 'required|string|max:255',
@@ -53,33 +48,25 @@ class EmpresaController extends Controller
             'valor_contrato.required' => 'Defina o valor mensal para gerar a primeira fatura.'
         ]);
 
-        $dados = $request->all();
-
-        // [ESTADO INICIAL] Poka-Yoke: Toda nova empresa nasce ativa
-        $dados['ativo'] = 1;
-
-        // [BOLEANOS] Converte presença de checkbox em 1 ou 0 para o MySQL
-        foreach (['seg', 'ter', 'qua', 'qui', 'sex', 'sab', 'dom'] as $dia) {
-            $dados[$dia] = $request->has($dia) ? 1 : 0;
-        }
-
-        if ($request->celular) {
-            $dados['celular'] = preg_replace('/\D/', '', $request->celular);
-        }
-
-        // [GEOLOCALIZAÇÃO] Padronização: Troca vírgula por ponto para o tipo DECIMAL do banco
-        if ($request->lat) $dados['lat'] = str_replace(',', '.', $request->lat);
-        if ($request->lng) $dados['lng'] = str_replace(',', '.', $request->lng);
-
-        // [ATOMICIDADE] DB::transaction garante que se o financeiro falhar, a empresa não é criada
-        return DB::transaction(function () use ($dados, $request) {
+        return DB::transaction(function () use ($request) {
             try {
+                $dados = $request->all();
+                $dados['ativo'] = 1; // Poka-Yoke: Nasce ativa por padrão
+
+                // [BOLEANOS] Converte checkboxes de dias da semana de forma limpa
+                foreach (['seg', 'ter', 'qua', 'qui', 'sex', 'sab', 'dom'] as $dia) {
+                    $dados[$dia] = $request->boolean($dia);
+                }
+
+                // [COORDENADAS] Normaliza separadores decimais
+                if ($request->lat) $dados['lat'] = str_replace(',', '.', $request->lat);
+                if ($request->lng) $dados['lng'] = str_replace(',', '.', $request->lng);
+
                 $empresa = Empresa::create($dados);
 
-                // [REGRA DE NEGÓCIO] Se admin cadastrou com valor, gera automaticamente a fatura do mês atual
+                // [FINANCEIRO] Geração automática da primeira fatura para Admins
                 if (Auth::user()->perfil === 'admin' && $request->valor_contrato > 0) {
-                    Faturamento::create([
-                        'empresa_id'        => $empresa->id,
+                    $empresa->faturamentos()->create([
                         'valor_mensalidade' => $request->valor_contrato,
                         'valor_avulso'      => 0,
                         'mes_referencia'    => now()->startOfMonth(),
@@ -87,34 +74,31 @@ class EmpresaController extends Controller
                     ]);
                     $msg = 'Empresa e faturamento gerados com sucesso!';
                 } else {
-                    $msg = 'Empresa cadastrada! O financeiro deve ser configurado pelo Admin.';
+                    $msg = 'Empresa cadastrada com sucesso!';
                 }
 
+                // [NOTIFICAÇÃO] Dispara e-mail para a Soutec Digital
                 $this->notificarCadastroAdmin($empresa);
 
                 return redirect()->route('empresas.index')->with('success', $msg);
             } catch (Exception $e) {
-                return redirect()->back()->with('error', 'Erro ao salvar: ' . $e->getMessage())->withInput();
+                Log::error("Erro ao salvar empresa: " . $e->getMessage());
+                return redirect()->back()->with('error', 'Erro interno ao processar cadastro.')->withInput();
             }
         });
     }
 
     public function edit(Empresa $empresa)
     {
-        // [DADOS ACUMULADOS] Carrega contagem de alunos e última fatura para visualização rápida no Edit
         $totalAlunosAtual = DB::table('empresa_user')->where('empresa_id', $empresa->id)->count();
-
+        
         $ultimaFatura = Faturamento::where('empresa_id', $empresa->id)
-                            ->orderBy('mes_referencia', 'desc')
-                            ->first();
+                                    ->orderBy('mes_referencia', 'desc')
+                                    ->first();
 
         return view('empresas.edit', compact('empresa', 'totalAlunosAtual', 'ultimaFatura'));
     }
 
-    /**
-     * ATUALIZAR EMPRESA E AUDITORIA
-     * Se o valor do contrato mudar, o sistema registra o histórico (log de reajuste).
-     */
     public function update(Request $request, Empresa $empresa)
     {
         $request->merge(['cnpj' => preg_replace('/\D/', '', $request->cnpj)]);
@@ -126,54 +110,41 @@ class EmpresaController extends Controller
             'ativo'          => 'required|boolean',
             'valor_contrato' => 'nullable|numeric',
             'dia_vencimento' => 'required|integer|min:1|max:31',
-            'lat'            => 'nullable|numeric',
-            'lng'            => 'nullable|numeric',
         ]);
 
-        $dados = $request->all();
-        $dados['celular'] = preg_replace('/\D/', '', $request->celular ?? '');
-
-        foreach (['seg', 'ter', 'qua', 'qui', 'sex', 'sab', 'dom'] as $dia) {
-            $dados[$dia] = $request->has($dia) ? 1 : 0;
-        }
-
-        if ($request->lat) $dados['lat'] = str_replace(',', '.', $request->lat);
-        if ($request->lng) $dados['lng'] = str_replace(',', '.', $request->lng);
-
-        $isAdminOrSocio = in_array(Auth::user()->perfil, ['admin', 'socio']);
-        $valorAntigo = (float) $empresa->valor_contrato;
-        $valorNovo = $isAdminOrSocio ? (float) ($request->valor_contrato ?? $valorAntigo) : $valorAntigo;
-
-        // [SEGURANÇA] Bloqueia alteração de dados sensíveis por perfis não-admin/socio
-        if (!$isAdminOrSocio) {
-            unset($dados['valor_contrato'], $dados['dia_vencimento']);
-        }
-
-        return DB::transaction(function () use ($dados, $empresa, $request, $valorAntigo, $valorNovo, $isAdminOrSocio) {
+        return DB::transaction(function () use ($request, $empresa) {
             try {
-                // [AUDITORIA] Se houver reajuste de valor, grava no histórico e projeta fatura para o próximo mês
+                $dados = $request->all();
+                $isAdminOrSocio = in_array(Auth::user()->perfil, ['admin', 'socio']);
+                
+                $valorAntigo = (float) $empresa->valor_contrato;
+                $valorNovo = $isAdminOrSocio ? (float) ($request->valor_contrato ?? $valorAntigo) : $valorAntigo;
+
+                // [AUDITORIA] Registra reajuste e projeta próxima fatura
                 if ($isAdminOrSocio && $valorNovo != $valorAntigo) {
                     HistoricoContrato::create([
-                        'empresa_id'           => $empresa->id,
-                        'user_id'              => Auth::id(), // Quem fez a alteração
-                        'valor_anterior'       => $valorAntigo,
-                        'valor_novo'           => $valorNovo,
-                        'motivo'               => $request->motivo_alteracao ?? 'Reajuste contratual',
-                        'total_alunos_momento' => $request->total_alunos ?? 0
+                        'empresa_id'     => $empresa->id,
+                        'user_id'        => Auth::id(),
+                        'valor_anterior' => $valorAntigo,
+                        'valor_novo'     => $valorNovo,
+                        'motivo'         => $request->motivo_alteracao ?? 'Reajuste contratual'
                     ]);
 
                     Faturamento::create([
                         'empresa_id'        => $empresa->id,
                         'valor_mensalidade' => $valorNovo,
-                        'valor_avulso'      => 0,
                         'mes_referencia'    => now()->addMonth()->startOfMonth(),
                         'status'            => 'pendente'
                     ]);
                 }
 
-                $empresa->update($dados);
+                // Segurança: Impede que não-admins alterem valores críticos
+                if (!$isAdminOrSocio) {
+                    unset($dados['valor_contrato'], $dados['dia_vencimento']);
+                }
 
-                return redirect()->route('empresas.index')->with('success', 'Cadastro e localização atualizados!');
+                $empresa->update($dados);
+                return redirect()->route('empresas.index')->with('success', 'Cadastro atualizado!');
             } catch (Exception $e) {
                 return redirect()->back()->with('error', 'Erro na atualização: ' . $e->getMessage());
             }
@@ -183,32 +154,26 @@ class EmpresaController extends Controller
     public function destroy(Empresa $empresa)
     {
         try {
-            $empresa->delete();
-            return redirect()->route('empresas.index')->with('success', 'Empresa removida com sucesso.');
+            // Com SoftDeletes, o registro não some do banco, apenas fica "inativo"
+            $empresa->delete(); 
+            return redirect()->route('empresas.index')->with('success', 'Empresa arquivada com sucesso.');
         } catch (Exception $e) {
-            Log::error("Erro ao deletar empresa ID {$empresa->id}: " . $e->getMessage());
-            return redirect()->back()->with('error', 'Erro: Verifique se existem registros (alunos/faturas) vinculados.');
+            Log::error("Erro ao deletar empresa: " . $e->getMessage());
+            return redirect()->back()->with('error', 'Não foi possível remover a empresa.');
         }
     }
 
-    /**
-     * NOTIFICAÇÃO EXTERNA
-     * Envia e-mail para a Soutec Digital informando sobre novos parceiros no Hub.
-     */
     private function notificarCadastroAdmin($empresa)
     {
         try {
             $adminEmail = 'soutecdigital@gmail.com';
-            $usuarioQueCadastrou = Auth::user()->name;
+            $usuario = Auth::user()->name ?? 'Sistema';
 
-            Mail::raw("🚀 ALERTA DE NOVO CADASTRO - LABORAL HUB\n\n" .
-                "A empresa '{$empresa->nome_fantasia}' acaba de ser cadastrada por {$usuarioQueCadastrou}.\n" .
-                "Localização: {$empresa->cidade}-{$empresa->estado}\n" .
-                "Acesse o painel para validar o contrato.", function ($message) use ($adminEmail) {
-                $message->to($adminEmail)->subject('🔔 Nova Empresa no Sistema');
+            Mail::raw("🚀 NOVO PARCEIRO NO HUB\n\nA empresa '{$empresa->nome_fantasia}' foi cadastrada por {$usuario}.\nLocal: {$empresa->cidade}-{$empresa->estado}", function ($message) use ($adminEmail) {
+                $message->to($adminEmail)->subject('🔔 Nova Empresa: ' . config('app.name'));
             });
         } catch (Exception $e) {
-            Log::error("Falha ao notificar admin: " . $e->getMessage());
+            Log::error("Falha na notificação de e-mail: " . $e->getMessage());
         }
     }
 }
