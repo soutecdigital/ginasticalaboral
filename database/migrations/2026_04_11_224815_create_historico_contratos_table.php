@@ -20,6 +20,7 @@ return new class extends Migration
                 $table->decimal('valor_novo', 10, 2);
                 $table->string('motivo')->nullable();
                 $table->integer('total_alunos_momento')->default(0);
+                $table->softDeletes();
                 $table->timestamps();
             });
         }
