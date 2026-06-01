@@ -1,12 +1,15 @@
 #!/bin/sh
 
-# 1. Roda apenas as NOVAS migrations com segurança (NUNCA use fresh aqui em produção!)
-php artisan migrate --force
+# 1. Derruba o banco antigo e recria com as colunas novas de softDeletes
+php artisan migrate:fresh --force
 
-# 2. Mantém os caches limpos para garantir que novas rotas e telas funcionem direto
+# 2. Executa os Seeders padrão
+php artisan db:seed --force
+
+# 3. Limpa caches estruturais
 php artisan route:clear
 php artisan config:clear
 php artisan cache:clear
 
-# 3. Inicia o servidor Apache em primeiro plano
+# 4. Inicia o Apache
 exec apache2-foreground
