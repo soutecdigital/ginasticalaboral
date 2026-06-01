@@ -26,7 +26,7 @@ Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
-// ROTA DE EMERGÊNCIA - TOTALMENTE ISOLADA DE GRUPOS E MIDDLEWARES
+// ROTA DE SEEDS - TOTALMENTE ISOLADA DE GRUPOS E MIDDLEWARES
 Route::get('/rodar-seeds-obrigatorio', function () {
     try {
         Artisan::call('db:seed', ['--force' => true]);
@@ -34,6 +34,21 @@ Route::get('/rodar-seeds-obrigatorio', function () {
     } catch (\Exception $e) {
         return 'Erro ao rodar seeders: ' . $e->getMessage();
     }
+});
+
+// ROTA DE DIAGNÓSTICO - LEITURA DOS ERROS INTERNOS DO LARAVEL (ERRO 500)
+Route::get('/ver-meus-erros-secretos', function () {
+    $caminhoLog = storage_path('logs/laravel.log');
+    
+    if (!file_exists($caminhoLog)) {
+        return 'Nenhum erro registrado no arquivo laravel.log ainda!';
+    }
+    
+    // Lê o arquivo de log e pega os últimos 4000 caracteres (o final do arquivo)
+    $conteudo = file_get_contents($caminhoLog);
+    $finalDoLog = substr($conteudo, -4000);
+    
+    return '<pre style="background: #1e1e1e; color: #f1f1f1; padding: 15px; border-radius: 5px; overflow-x: auto;">' . htmlspecialchars($finalDoLog) . '</pre>';
 });
 
 // --- 2. ÁREA RESTRITA ---
