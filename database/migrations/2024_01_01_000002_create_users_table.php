@@ -34,6 +34,7 @@ return new class extends Migration
             $table->timestamp('data_creator')->useCurrent();
             $table->decimal('cpf', 14, 2)->nullable(); // CPF do usuário, formato numérico para evitar erros de formatação
             $table->rememberToken();
+            $table->softDeletes();
             $table->timestamps();
         });
 
