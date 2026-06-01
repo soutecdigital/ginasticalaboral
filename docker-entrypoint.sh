@@ -1,7 +1,10 @@
 #!/bin/sh
 
-# Roda as novas migrations e executa os Seeders automaticamente
-php artisan migrate --force --seed
+# 1. Roda as novas migrations na produção
+php artisan migrate --force
 
-# Iniciar o servidor do Apache
+# 2. Força a execução dos Seeders mesmo em ambiente de produção
+php artisan db:seed --force
+
+# 3. Inicia o servidor Apache
 exec apache2-foreground
