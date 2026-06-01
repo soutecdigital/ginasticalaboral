@@ -35,7 +35,7 @@ return new class extends Migration
             
             // Campo opcional para observações (Ex: Aluno com dor lombar)
             $table->text('observacoes')->nullable();
-
+            $table->softDeletes();
             $table->timestamps();
         });
     }
