@@ -1,7 +1,7 @@
 #!/bin/sh
 
-# Rodar as migrations limpando o banco rascunho anterior
-php artisan migrate --force
+# Roda as novas migrations e executa os Seeders automaticamente
+php artisan migrate --force --seed
 
-# Iniciar o servidor do Apache em primeiro plano
+# Iniciar o servidor do Apache
 exec apache2-foreground
