@@ -32,12 +32,11 @@ RUN composer install --no-interaction --optimize-autoloader --no-dev
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
 # Porta padrão que o Render vai mapear
-# Porta padrão que o Render vai mapear
 EXPOSE 80
 
-# Copiar o script de inicialização e dar permissão de execução
+# Copiar o script de inicialização e dar permissão de execução (Ajustado com o ponto .sh)
 COPY docker-entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/docker-entrypoint-sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # Definir o script como ponto de partida definitivo
 CMD ["docker-entrypoint.sh"]
