@@ -25,9 +25,6 @@ return new class extends Migration
             $table->timestamp('checkin')->nullable();
             $table->string('status_presenca')->default('pendente');
             $table->text('solicitou_ajuste')->nullable(); 
-            
-            // Removemos daqui: lat_prof, lng_prof, geo_valid e a constraint unique 
-            // (elas vão para o arquivo novo para não quebrar o banco)
 
             $table->timestamps();
         });
