@@ -1,12 +1,11 @@
 #!/bin/sh
 
-# 1. Roda APENAS novas migrations com segurança (NUNCA mais use fresh aqui!)
-php artisan migrate --force
+# Roda o fresh e os seeds para reconstruir o banco limpo que deixamos no Neon
+php artisan migrate:fresh --seed --force
 
-# 2. Limpa e renova os caches para as novas rotas funcionarem direto
+# Limpa os caches
 php artisan route:clear
 php artisan config:clear
 php artisan cache:clear
 
-# 3. Inicia o servidor Apache em primeiro plano
 exec apache2-foreground
