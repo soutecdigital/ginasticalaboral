@@ -44,11 +44,21 @@ Route::get('/ver-meus-erros-secretos', function () {
         return 'Nenhum erro registrado no arquivo laravel.log ainda!';
     }
     
-    // Lê o arquivo de log e pega os últimos 4000 caracteres (o final do arquivo)
-    $conteudo = file_get_contents($caminhoLog);
-    $finalDoLog = substr($conteudo, -4000);
+    // Lê as linhas do log de trás para frente procurando o erro real
+    $linhas = file($caminhoLog);
+    $errosLimpas = [];
     
-    return '<pre style="background: #1e1e1e; color: #f1f1f1; padding: 15px; border-radius: 5px; overflow-x: auto;">' . htmlspecialchars($finalDoLog) . '</pre>';
+    foreach (array_reverse($linhas) as $linha) {
+        // Filtra apenas as linhas que começam com a data e indicam erros de produção
+        if (str_contains($linha, '.ERROR:') || str_contains($linha, 'Exception')) {
+            $errosLimpas[] = $linha;
+        }
+        if (count($errosLimpas) >= 10) break; // Pega os 10 últimos principais
+    }
+    
+    return '<pre style="background: #1e1e1e; color: #ff6b6b; padding: 15px; border-radius: 5px; font-size: 14px;">' . 
+           implode("\n\n", array_reverse($errosLimpas)) . 
+           '</pre>';
 });
 
 // --- 2. ÁREA RESTRITA ---
