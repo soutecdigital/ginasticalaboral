@@ -39,10 +39,10 @@ return new class extends Migration
             $table->boolean('ativo')->default(true);
             $table->decimal('lat', 10, 8)->nullable(); // Latitude
             $table->decimal('lng', 11, 8)->nullable(); // Longitude
-
-
+            $table->softDeletes(); 
 
             $table->timestamps();
+           
         });
     }
 
