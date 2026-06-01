@@ -31,7 +31,7 @@ return new class extends Migration
 
             // --- Dados do Evento (O que você precisava) ---
             $table->date('data_presenca'); // Registra apenas YYYY-MM-DD
-            $table->time('hora_presenca')->nullable()->change(); // Adicione o ->nullable()
+            $table->time('hora_presenca')->nullable(); // Adicione o ->nullable()
             
             // Campo opcional para observações (Ex: Aluno com dor lombar)
             $table->text('observacoes')->nullable();
