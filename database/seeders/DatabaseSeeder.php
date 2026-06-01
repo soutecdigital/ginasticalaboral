@@ -30,6 +30,7 @@ class DatabaseSeeder extends Seeder
             [
                 'name' => 'Test User',
                 'perfil' => 'admin',
+                'matricula' => '123456',
                // 'ativo' => true,
                 'password' => \Illuminate\Support\Facades\Hash::make('password'), // Defina uma senha padrão
             ]
