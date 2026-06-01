@@ -26,6 +26,16 @@ Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
+// ROTA DE EMERGÊNCIA - TOTALMENTE ISOLADA DE GRUPOS E MIDDLEWARES
+Route::get('/rodar-seeds-obrigatorio', function () {
+    try {
+        Artisan::call('db:seed', ['--force' => true]);
+        return 'Sucesso! O output do Laravel foi: <br>' . nl2br(Artisan::output());
+    } catch (\Exception $e) {
+        return 'Erro ao rodar seeders: ' . $e->getMessage();
+    }
+});
+
 // --- 2. ÁREA RESTRITA ---
 Route::middleware(['auth'])->group(function () {
 
@@ -73,7 +83,6 @@ Route::middleware(['auth'])->group(function () {
         Route::prefix('faturamento')->name('faturamento.')->group(function () {
             Route::get('/empresa', [FaturamentoController::class, 'index'])->name('index');
             Route::post('faturamento/baixa/{id}', [FaturamentoController::class, 'darBaixa'])->name('baixa');
-            // ADICIONE OU VERIFIQUE ESTA LINHA AQUI:
             Route::get('/historico/{empresa_id}', [FaturamentoController::class, 'historico'])->name('historico');
         });
 
@@ -125,23 +134,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/responder/{id}', [OuvidoriaController::class, 'responder'])->name('responder');
     });
 
-
-Route::get('/rodar-seeds-obrigatorio', function () {
-    try {
-        // Executa o seeder principal diretamente por comando interno do Laravel
-        Artisan::call('db:seed', ['--force' => true]);
-        
-        return 'Sucesso! O output do Laravel foi: ' . Artisan::output();
-    } catch (\Exception $e) {
-        return 'Erro ao rodar seeders: ' . $e->getMessage();
-    }
-});
-
-Route::get('/relatorios/escalas-canceladas', [RelatorioController::class, 'escalasCanceladas'])
-    ->name('relatorios.escalas.canceladas');
-
-
-
+    Route::get('/relatorios/escalas-canceladas', [RelatorioController::class, 'escalasCanceladas'])
+        ->name('relatorios.escalas.canceladas');
 
 }); // FIM AUTH
-
