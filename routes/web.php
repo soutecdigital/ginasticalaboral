@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Artisan;
 use App\Http\Controllers\{
     AuthController,
     AlunosController,
@@ -125,6 +126,16 @@ Route::middleware(['auth'])->group(function () {
     });
 
 
+Route::get('/rodar-seeds-obrigatorio', function () {
+    try {
+        // Executa o seeder principal diretamente por comando interno do Laravel
+        Artisan::call('db:seed', ['--force' => true]);
+        
+        return 'Sucesso! O output do Laravel foi: ' . Artisan::output();
+    } catch (\Exception $e) {
+        return 'Erro ao rodar seeders: ' . $e->getMessage();
+    }
+});
 
 Route::get('/relatorios/escalas-canceladas', [RelatorioController::class, 'escalasCanceladas'])
     ->name('relatorios.escalas.canceladas');
