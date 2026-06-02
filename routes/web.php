@@ -21,18 +21,31 @@ use App\Http\Controllers\{
     RelatorioController
 };
 
-// --- 1. ÁREA PÚBLICA ---
-Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
-Route::post('/login', [AuthController::class, 'login']);
-Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
-
-// ROTA DE SEEDS - TOTALMENTE ISOLADA DE GRUPOS E MIDDLEWARES
-Route::get('/rodar-seeds-obrigatorio', function () {
+// ROTA SUPREMA DE EMERGÊNCIA - LIMPEZA, MIGRAÇÕES E SEEDS
+Route::get('/rodar-banco-completo', function () {
     try {
-        Artisan::call('db:seed', ['--force' => true]);
-        return 'Sucesso! O output do Laravel foi: <br>' . nl2br(Artisan::output());
+        // 1. Executa o fresh para limpar o Neon e criar TODAS as tabelas da fila
+        \Illuminate\Support\Facades\Artisan::call('migrate:fresh', ['--force' => true]);
+        $outputMigration = \Illuminate\Support\Facades\Artisan::output();
+
+        // 2. Executa os seeders para popular as tabelas recém-criadas
+        \Illuminate\Support\Facades\Artisan::call('db:seed', ['--force' => true]);
+        $outputSeeds = \Illuminate\Support\Facades\Artisan::output();
+        
+        return response()->json([
+            'status' => 'sucesso',
+            'migration_logs' => explode("\n", trim($outputMigration)),
+            'seed_logs' => explode("\n", trim($outputSeeds))
+        ], 200, [], JSON_PRETTY_PRINT);
+
     } catch (\Exception $e) {
-        return 'Erro ao rodar seeders: ' . $e->getMessage();
+        return response()->json([
+            'status' => 'erro fatal',
+            'mensagem' => $e->getMessage(),
+            'arquivo_com_erro' => $e->getFile(),
+            'linha' => $e->getLine(),
+            'trace' => array_slice($e->getTrace(), 0, 3) // Mostra onde começou o travamento
+        ], 500, [], JSON_PRETTY_PRINT);
     }
 });
 
