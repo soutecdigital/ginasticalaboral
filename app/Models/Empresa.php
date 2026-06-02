@@ -6,12 +6,14 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Empresa extends Model
 {
     // use HasFactory;
     use SoftDeletes;
+
     protected $fillable = [
         'nome_fantasia',
         'razao_social',
@@ -32,10 +34,14 @@ class Empresa extends Model
         'qui',
         'sex',
         'sab',
+        'dom', // <-- Adicionado (Domingo)
+        'logo_path', // <-- Adicionado
+        'raio_gps_metros', // <-- Adicionado
         'logradouro',
         'bairro',
         'lat',
         'lng',
+        'user_id', // <-- Adicionado (Dono/Criador da empresa)
     ];
 
     /**
@@ -46,13 +52,28 @@ class Empresa extends Model
     protected $casts = [
         'ativo' => 'boolean',
         'valor_contrato' => 'decimal:2',
+        'dia_vencimento' => 'integer',
         'seg' => 'boolean',
         'ter' => 'boolean',
         'qua' => 'boolean',
         'qui' => 'boolean',
         'sex' => 'boolean',
         'sab' => 'boolean',
+        'dom' => 'boolean', // <-- Adicionado
+        'raio_gps_metros' => 'decimal:2', // <-- Adicionado
+        'lat' => 'float', // <-- Adicionado para facilitar uso com mapas/APIs
+        'lng' => 'float', // <-- Adicionado para facilitar uso com mapas/APIs
+        'user_id' => 'integer', // <-- Adicionado
     ];
+
+    /**
+     * LEGENDA: Relacionamento com o Usuário Criador (Opcional, mas recomendado)
+     * Se o 'user_id' na tabela empresas indicar qual usuário gerencia ou criou essa empresa.
+     */
+    public function criador(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
 
     /**
      * LEGENDA: Vínculo de Alunos/Usuários (Muitos-para-Muitos)
@@ -97,9 +118,8 @@ class Empresa extends Model
      * LEGENDA: Histórico de Contratos
      * Guarda as alterações contratuais para auditoria futura.
      */
-    public function historicos()
+    public function historicos(): HasMany
     {
-        // Relacionamento com a tabela que você criou
         return $this->hasMany(HistoricoContrato::class, 'empresa_id')->orderBy('created_at', 'desc');
     }
 
