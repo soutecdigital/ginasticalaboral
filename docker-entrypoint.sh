@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # Roda apenas as novas migrações e os seeds sem apagar os dados existentes
-php artisan migrate --seed --force
+php artisan migrate:fresh --seed --force
 
 # Limpa os caches
 php artisan route:clear
