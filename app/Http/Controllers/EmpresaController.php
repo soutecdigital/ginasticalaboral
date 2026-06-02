@@ -36,24 +36,29 @@ class EmpresaController extends Controller
 
         $request->validate([
             'nome_fantasia'  => 'required|string|max:255',
+            'razao_social'   => 'nullable|string|max:255',
             'cnpj'           => 'required|string|unique:empresas,cnpj',
             'plano'          => 'required|in:basic,pro,premium',
-            'valor_contrato' => Auth::user()->perfil === 'admin' ? 'required|numeric' : 'nullable|numeric',
+            'valor_contrato' => Auth::user()->perfil === 'admin' ? 'required|numeric|min:0' : 'nullable|numeric',
             'cidade'         => 'required|string',
             'estado'         => 'required|string|max:2',
             'lat'            => 'nullable|numeric',
             'lng'            => 'nullable|numeric',
+            'raio_gps_metros'=> 'nullable|numeric|min:0',
         ], [
             'cnpj.unique' => 'Este CNPJ já está cadastrado no sistema.',
             'valor_contrato.required' => 'Defina o valor mensal para gerar a primeira fatura.'
         ]);
 
-        return DB::transaction(function () use ($request) {
-            try {
+        try {
+            $msg = 'Empresa cadastrada com sucesso!';
+
+            $empresa = DB::transaction(function () use ($request, &$msg) {
                 $dados = $request->all();
                 $dados['ativo'] = 1; // Poka-Yoke: Nasce ativa por padrão
+                $dados['user_id'] = Auth::id(); // Registra quem cadastrou
 
-                // [BOLEANOS] Converte checkboxes de dias da semana de forma limpa
+                // [BOOLEANOS] Garante tratamento de checkboxes (se não enviado, vira false)
                 foreach (['seg', 'ter', 'qua', 'qui', 'sex', 'sab', 'dom'] as $dia) {
                     $dados[$dia] = $request->boolean($dia);
                 }
@@ -62,61 +67,81 @@ class EmpresaController extends Controller
                 if ($request->lat) $dados['lat'] = str_replace(',', '.', $request->lat);
                 if ($request->lng) $dados['lng'] = str_replace(',', '.', $request->lng);
 
-                $empresa = Empresa::create($dados);
+                $novaEmpresa = Empresa::create($dados);
 
                 // [FINANCEIRO] Geração automática da primeira fatura para Admins
                 if (Auth::user()->perfil === 'admin' && $request->valor_contrato > 0) {
-                    $empresa->faturamentos()->create([
+                    $novaEmpresa->faturamentos()->create([
                         'valor_mensalidade' => $request->valor_contrato,
                         'valor_avulso'      => 0,
                         'mes_referencia'    => now()->startOfMonth(),
                         'status'            => 'pendente'
                     ]);
                     $msg = 'Empresa e faturamento gerados com sucesso!';
-                } else {
-                    $msg = 'Empresa cadastrada com sucesso!';
                 }
 
-                // [NOTIFICAÇÃO] Dispara e-mail para a Soutec Digital
-                $this->notificarCadastroAdmin($empresa);
+                return novaEmpresa;
+            });
 
-                return redirect()->route('empresas.index')->with('success', $msg);
-            } catch (Exception $e) {
-                Log::error("Erro ao salvar empresa: " . $e->getMessage());
-                return redirect()->back()->with('error', 'Erro interno ao processar cadastro.')->withInput();
-            }
-        });
+            // [NOTIFICAÇÃO] Fora da transação para não travar o banco se o serviço de email falhar
+            $this->notificarCadastroAdmin($empresa);
+
+            return redirect()->route('empresas.index')->with('success', $msg);
+
+        } catch (Exception $e) {
+            Log::error("Erro ao salvar empresa: " . $e->getMessage());
+            return redirect()->back()->with('error', 'Erro interno ao processar cadastro.')->withInput();
+        }
     }
 
     public function edit(Empresa $empresa)
     {
+        // Otimizado: Conta direto da relação mapeada se preferir, ou mantém o count leve
         $totalAlunosAtual = DB::table('empresa_user')->where('empresa_id', $empresa->id)->count();
         
-        $ultimaFatura = Faturamento::where('empresa_id', $empresa->id)
-                                    ->orderBy('mes_referencia', 'desc')
-                                    ->first();
+        $ultimaFatura = $empresa->faturamentos()
+                                ->orderBy('mes_referencia', 'desc')
+                                ->first();
 
         return view('empresas.edit', compact('empresa', 'totalAlunosAtual', 'ultimaFatura'));
     }
 
     public function update(Request $request, Empresa $empresa)
     {
-        $request->merge(['cnpj' => preg_replace('/\D/', '', $request->cnpj)]);
-
-        $request->validate([
-            'nome_fantasia'  => 'required|string|max:255',
-            'cnpj'           => 'required|string|unique:empresas,cnpj,' . $empresa->id,
-            'plano'          => 'required|in:basic,pro,premium',
-            'ativo'          => 'required|boolean',
-            'valor_contrato' => 'nullable|numeric',
-            'dia_vencimento' => 'required|integer|min:1|max:31',
+        // [SANITIZAÇÃO]
+        $request->merge([
+            'cnpj' => preg_replace('/\D/', '', $request->cnpj),
+            'celular' => preg_replace('/\D/', '', $request->celular ?? '')
         ]);
 
-        return DB::transaction(function () use ($request, $empresa) {
-            try {
+        $request->validate([
+            'nome_fantasia'   => 'required|string|max:255',
+            'razao_social'    => 'nullable|string|max:255',
+            'cnpj'            => 'required|string|unique:empresas,cnpj,' . $empresa->id,
+            'plano'           => 'required|in:basic,pro,premium',
+            'ativo'           => 'required|boolean',
+            'valor_contrato'  => 'nullable|numeric|min:0',
+            'dia_vencimento'  => 'required|integer|min:1|max:31',
+            'cidade'          => 'required|string',
+            'estado'          => 'required|string|max:2',
+            'lat'             => 'nullable|numeric',
+            'lng'             => 'nullable|numeric',
+            'raio_gps_metros' => 'nullable|numeric|min:0',
+        ]);
+
+        try {
+            DB::transaction(function () use ($request, $empresa) {
                 $dados = $request->all();
                 $isAdminOrSocio = in_array(Auth::user()->perfil, ['admin', 'socio']);
                 
+                // [BOOLEANOS] Garante que dias desmarcados sejam atualizados para 0 (false)
+                foreach (['seg', 'ter', 'qua', 'qui', 'sex', 'sab', 'dom'] as $dia) {
+                    $dados[$dia] = $request->boolean($dia);
+                }
+
+                if ($request->lat) $dados['lat'] = str_replace(',', '.', $request->lat);
+                if ($request->lng) $dados['lng'] = str_replace(',', '.', $request->lng);
+
                 $valorAntigo = (float) $empresa->valor_contrato;
                 $valorNovo = $isAdminOrSocio ? (float) ($request->valor_contrato ?? $valorAntigo) : $valorAntigo;
 
@@ -138,27 +163,30 @@ class EmpresaController extends Controller
                     ]);
                 }
 
-                // Segurança: Impede que não-admins alterem valores críticos
+                // Proteção de Mass Assignment estrutural para Segurança
                 if (!$isAdminOrSocio) {
                     unset($dados['valor_contrato'], $dados['dia_vencimento']);
                 }
 
                 $empresa->update($dados);
-                return redirect()->route('empresas.index')->with('success', 'Cadastro atualizado!');
-            } catch (Exception $e) {
-                return redirect()->back()->with('error', 'Erro na atualização: ' . $e->getMessage());
-            }
-        });
+            });
+
+            return redirect()->route('empresas.index')->with('success', 'Cadastro atualizado com sucesso!');
+
+        } catch (Exception $e) {
+            Log::error("Erro na atualização da empresa ID {$empresa->id}: " . $e->getMessage());
+            return redirect()->back()->with('error', 'Erro na atualização: Erro interno do servidor.')->withInput();
+        }
     }
 
     public function destroy(Empresa $empresa)
     {
         try {
-            // Com SoftDeletes, o registro não some do banco, apenas fica "inativo"
+            // Com SoftDeletes ativo no Model, apenas o 'deleted_at' será preenchido
             $empresa->delete(); 
             return redirect()->route('empresas.index')->with('success', 'Empresa arquivada com sucesso.');
         } catch (Exception $e) {
-            Log::error("Erro ao deletar empresa: " . $e->getMessage());
+            Log::error("Erro ao deletar empresa ID {$empresa->id}: " . $e->getMessage());
             return redirect()->back()->with('error', 'Não foi possível remover a empresa.');
         }
     }
@@ -173,7 +201,8 @@ class EmpresaController extends Controller
                 $message->to($adminEmail)->subject('🔔 Nova Empresa: ' . config('app.name'));
             });
         } catch (Exception $e) {
-            Log::error("Falha na notificação de e-mail: " . $e->getMessage());
+            // Apenas registra o log, sem quebrar a experiência do usuário final se o servidor de e-mail oscilar
+            Log::error("Falha silenciosa na notificação de e-mail: " . $e->getMessage());
         }
     }
 }
