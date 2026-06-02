@@ -1,12 +1,11 @@
 #!/bin/sh
 
-# Poka-Yoke: Executa apenas as novas migrações com segurança, sem apagar dados existentes
-php artisan migrate --force
+# Força a limpeza e criação de todas as tabelas estruturais de uma vez
+php artisan migrate:fresh --force
 
-# Limpa e otimiza os caches para o ambiente produtivo
+# Limpa os caches
 php artisan route:clear
 php artisan config:clear
 php artisan cache:clear
-php artisan view:clear
 
 exec apache2-foreground
