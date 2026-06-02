@@ -11,33 +11,30 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // 1. Criação da Tabela Pivô (Muitos para Muitos)
-        Schema::create('empresa_user', function (Blueprint $table) {
-           $table->bigIncrements('id'); // Garante o AUTO_INCREMENT para evitar erro 1364
-            
-            // Relacionamento com Usuário (Alunos/Professores)
-            // Especificamos a tabela 'users' para garantir a integridade
-            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
-            
-            // Relacionamento com Empresa
-            $table->foreignId('empresa_id')->constrained('empresas')->onDelete('cascade');
+        // 1. Criação da Tabela Pivô (Muitos para Muitos) - Poka-Yoke total para Postgres
+        if (!Schema::hasTable('empresa_user')) {
+            Schema::create('empresa_user', function (Blueprint $table) {
+                $table->id(); // Sintaxe moderna que evita o erro 1364 de AUTO_INCREMENT
+                
+                $table->foreignId('user_id')
+                      ->constrained('users')
+                      ->onDelete('cascade');
+                
+                $table->foreignId('empresa_id')
+                      ->constrained('empresas')
+                      ->onDelete('cascade');
 
-            $table->timestamps();
-        });
+                $table->timestamps();
+            });
+        }
 
         /**
          * Poka-Yoke: Limpeza de Arquitetura.
-         * Removemos o vínculo 1:N antigo da tabela users, 
-         * pois agora um usuário pode pertencer a várias empresas.
+         * Removemos o vínculo 1:N antigo da tabela users com segurança máxima.
          */
         if (Schema::hasColumn('users', 'empresa_id')) {
             Schema::table('users', function (Blueprint $table) {
-                // Tenta derrubar a chave estrangeira antes da coluna
-                try {
-                    $table->dropForeign(['empresa_id']);
-                } catch (\Exception $e) {
-                    // Se não houver chave estrangeira nomeada, apenas segue
-                }
+                // No Postgres, apenas removemos a coluna direto. O banco limpa os índices locais sozinho.
                 $table->dropColumn('empresa_id');
             });
         }
@@ -48,13 +45,12 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Recria a coluna na tabela users caso precise dar Rollback
+        Schema::dropIfExists('empresa_user');
+
         Schema::table('users', function (Blueprint $table) {
             if (!Schema::hasColumn('users', 'empresa_id')) {
-                $table->foreignId('empresa_id')->nullable()->constrained('empresas')->onDelete('set null');
+                $table->unsignedBigInteger('empresa_id')->nullable();
             }
         });
-
-        Schema::dropIfExists('empresa_user');
     }
 };
