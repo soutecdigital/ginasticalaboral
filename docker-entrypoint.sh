@@ -1,9 +1,9 @@
 #!/bin/sh
 
-# Força o reset total do banco estrutural para limpar o Neon
+# Limpa e reconstrói absolutamente tudo do zero
 php artisan migrate:fresh --force
 
-# Limpa os caches de produção
+# Limpa os caches
 php artisan route:clear
 php artisan config:clear
 php artisan cache:clear
