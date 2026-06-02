@@ -1,7 +1,7 @@
 #!/bin/sh
 
-# Roda o fresh e os seeds para reconstruir o banco limpo que deixamos no Neon
-php artisan migrate:fresh --seed --force
+# Roda apenas as novas migrações e os seeds sem apagar os dados existentes
+php artisan migrate --seed --force
 
 # Limpa os caches
 php artisan route:clear
