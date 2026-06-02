@@ -15,31 +15,31 @@ return new class extends Migration
             $table->id();
 
             // --- Identificação do Usuário ---
-            $table->string('matricula')->unique(); // Seu Poka-Yoke para ID de funcionário
+            $table->string('matricula')->unique(); 
             $table->string('name');
             $table->string('email')->unique();
             $table->string('password');
             $table->string('perfil')->default('aluno'); // admin, professor, aluno
 
-            // --- A "Âncora" (Chave Estrangeira) ---
-            // Vincula o usuário à tabela empresas (000001)
-            // onDelete('cascade'): Se a empresa for deletada, os usuários somem também
-            $table->foreignId('empresa_id')
-                ->nullable()
-                ->constrained('empresas')
-                ->onDelete('cascade');
+            // --- Quebrando o Loop (Poka-Yoke para Postgres) ---
+            // Criamos a coluna apenas como dado numérico primeiro para não travar a inicialização.
+            // O vínculo muitos-para-muitos já será controlado com total segurança pela tabela pivô 'empresa_user' mais adiante!
+            $table->unsignedBigInteger('empresa_id')->nullable();
 
-            // --- Auditoria (Quem criou o registro) ---
-            $table->integer('user_creator')->nullable();
+            // --- Auditoria e Dados Gerais ---
+            $table->unsignedBigInteger('user_creator')->nullable();
             $table->timestamp('data_creator')->useCurrent();
-            $table->decimal('cpf', 14, 2)->nullable(); // CPF do usuário, formato numérico para evitar erros de formatação
+            
+            // Correção Poka-Yoke: CPF precisa ser string para preservar os zeros à esquerda (ex: 012.345...)
+            $table->string('cpf', 11)->nullable(); 
+            
             $table->rememberToken();
             $table->boolean('ativo')->default(true);
             $table->softDeletes();
             $table->timestamps();
         });
 
-        // Tabelas auxiliares do Laravel (Obrigatórias para o sistema funcionar)
+        // Tabelas auxiliares obrigatórias do Laravel
         Schema::create('password_reset_tokens', function (Blueprint $table) {
             $table->string('email')->primary();
             $table->string('token');
@@ -61,8 +61,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('users');
-        Schema::dropIfExists('password_reset_tokens');
         Schema::dropIfExists('sessions');
+        Schema::dropIfExists('password_reset_tokens');
+        Schema::dropIfExists('users');
     }
 };
