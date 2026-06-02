@@ -3,6 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB; // <-- Adicionado para permitir comandos SQL brutos no Postgres
 
 return new class extends Migration
 {
@@ -11,7 +12,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // 1. Criação da Tabela Pivô (Muitos para Muitos) - Poka-Yoke total para Postgresp
+        // 1. Criação da Tabela Pivô (Muitos para Muitos) - Poka-Yoke total para Postgres
         if (!Schema::hasTable('empresa_user')) {
             Schema::create('empresa_user', function (Blueprint $table) {
                 $table->id(); // Sintaxe moderna que evita o erro 1364 de AUTO_INCREMENT
@@ -33,8 +34,12 @@ return new class extends Migration
          * Removemos o vínculo 1:N antigo da tabela users com segurança máxima.
          */
         if (Schema::hasColumn('users', 'empresa_id')) {
+            // Supressão de Erro Nativa do Postgres: 
+            // Se a chave estrangeira existir no banco antigo, remove. Se não existir, o Postgres ignora e não quebra o deploy!
+            DB::statement('ALTER TABLE users DROP CONSTRAINT IF EXISTS users_empresa_id_foreign');
+
             Schema::table('users', function (Blueprint $table) {
-                // No Postgres, apenas removemos a coluna direto. O banco limpa os índices locais sozinho.
+                // Agora removemos a coluna fisicamente com total segurança
                 $table->dropColumn('empresa_id');
             });
         }
