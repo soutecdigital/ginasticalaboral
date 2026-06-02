@@ -21,16 +21,16 @@ use App\Http\Controllers\{
     RelatorioController
 };
 
-// ROTA SUPREMA DE EMERGÊNCIA - LIMPEZA, MIGRAÇÕES E SEEDS
+// ROTA SUPREMA DE EMERGÊNCIA - CRIAÇÃO TOTAL DO BANCO NEON
 Route::get('/rodar-banco-completo', function () {
     try {
         // 1. Executa o fresh para limpar o Neon e criar TODAS as tabelas da fila
-        \Illuminate\Support\Facades\Artisan::call('migrate:fresh', ['--force' => true]);
-        $outputMigration = \Illuminate\Support\Facades\Artisan::output();
+        Artisan::call('migrate:fresh', ['--force' => true]);
+        $outputMigration = Artisan::output();
 
         // 2. Executa os seeders para popular as tabelas recém-criadas
-        \Illuminate\Support\Facades\Artisan::call('db:seed', ['--force' => true]);
-        $outputSeeds = \Illuminate\Support\Facades\Artisan::output();
+        Artisan::call('db:seed', ['--force' => true]);
+        $outputSeeds = Artisan::output();
         
         return response()->json([
             'status' => 'sucesso',
@@ -43,12 +43,10 @@ Route::get('/rodar-banco-completo', function () {
             'status' => 'erro fatal',
             'mensagem' => $e->getMessage(),
             'arquivo_com_erro' => $e->getFile(),
-            'linha' => $e->getLine(),
-            'trace' => array_slice($e->getTrace(), 0, 3) // Mostra onde começou o travamento
+            'linha' => $e->getLine()
         ], 500, [], JSON_PRETTY_PRINT);
     }
 });
-
 // ROTA DE DIAGNÓSTICO - LEITURA DOS ERROS INTERNOS DO LARAVEL (ERRO 500)
 Route::get('/ver-meus-erros-secretos', function () {
     $caminhoLog = storage_path('logs/laravel.log');
