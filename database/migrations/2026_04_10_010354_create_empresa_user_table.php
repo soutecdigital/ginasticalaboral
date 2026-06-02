@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // 1. Criação da Tabela Pivô (Muitos para Muitos) - Poka-Yoke total para Postgres
+        // 1. Criação da Tabela Pivô (Muitos para Muitos) - Poka-Yoke total para Postgresp
         if (!Schema::hasTable('empresa_user')) {
             Schema::create('empresa_user', function (Blueprint $table) {
                 $table->id(); // Sintaxe moderna que evita o erro 1364 de AUTO_INCREMENT
